@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+        <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.22/vue.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.18.0/axios.min.js"></script>
+
+        <script src="../js/components/vbutton.js"></script>
+        <script src="../js/components/http.js"></script>
+        <script src="../js/components/dropdown.js"></script>
+        <script src="../js/components/makes-dropdown.js"></script>
+        <script src="../js/components/models-dropdown.js"></script>
+
+        <style>
+            #loader {
+                border: 16px solid #f3f3f3; /* Light grey */
+                border-top: 16px solid #3498db; /* Blue */
+                border-radius: 50%;
+                width: 120px;
+                height: 120px;
+                animation: spin 2s linear infinite;
+            }
+
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+        </style>
+
+        <meta charset="UTF-8">
+    </head>
+    <body>
+        <div id="app">
+            <div class="border border-dark rounded m-4 p-2">
+                <h3 class="text-center">Upload An Image to Mechawrench</h3>
+                <hr>
+                <h4>Make: {{selected.make}}</h4>
+                <makes-dropdown @select="select"></makes-dropdown>
+                <div v-if="selected.make">
+                    <h4>Model: {{selected.model}}</h4>
+                    <models-dropdown :make="selected.make" @select="select"></models-dropdown>
+                </div>
+                <div v-if="selected.model">
+                    <image-uploader :make="selected.make" :model="selected.model" @upload="$refs.display.refresh()"></image-uploader>
+                </div>
+            </div>
+
+            <div class="border border-dark rounded m-4 p-2">
+                <img-display ref="display"></img-display>
+            </div>
+        </div>
+    </body>
+    <script>
+        Vue.component('image-uploader', {
+            mixins: ['http'],
+            props: ['make', 'model'],
+            data: function(){
+                return {
+                    formData: null,
+                    loading: false
+                }
+            },
+            methods: {
+                process: function(){
+                    file = this.$refs.fileInput.files[0];
+                    console.log(file);
+
+                    if(file.type.split("/")[0] !== 'image'){
+                        alert("File Type is not an Image");
+                        this.$refs.fileInput.value = null;
+                        return;
+                    }
+
+                    this.formData = new FormData();
+                    this.formData.append('file', file);
+
+                    var preview = document.querySelector('img');
+                    var file    = document.querySelector('input[type=file]').files[0];
+                    var reader  = new FileReader();
+
+                    reader.onloadend = function () {
+                        preview.src = reader.result;
+                    }
+
+                    if (file) {
+                        reader.readAsDataURL(file);
+                    } else {
+                        preview.src = "";
+                    }
+
+                },
+                upload: function(){
+                    if(this.formData){
+                        this.loading = true;
+                        this.formData.append('make', this.make);
+                        this.formData.append('model', this.model);
+                        axios.post( 'api.php',
+                          this.formData,
+                          {
+                            headers: {
+                                'Content-Type': 'multipart/form-data'
+                            }
+                          }
+                        ).then( (response) => {
+                          console.log(response);
+                          this.$emit('upload');
+                          this.loading = false;
+                        })
+                    } else {
+                        alert("No file selected");
+                    }
+                }
+            },
+            template: `
+                <div>
+                    <form class="form-group" id="uploadForm" method='post' enctype="multipart/form-data">
+                        <input class="form-control" type='file' @change="process()" ref="fileInput">
+                    <div class="row">
+                        <div class="col text-center">
+                            <img src="" height="400" alt="Image preview...">
+                        </div>
+                        <div class="col text-left">
+                            <div id="loader" v-if="loading"></div>
+                        </div>
+                    </div>
+                    <div v-if="formData">
+                        <vbutton class="form-control" bgcolor="green" color="white" @click="upload()">Submit</vbutton>
+                    </div>
+                    </form>
+                </div>
+            `
+        });
+
+        Vue.component('img-display', {
+            mixins: ['http'],
+            data: function(){
+                return {
+                    images: {}
+                }
+            },
+            methods: {
+                refresh: function(){
+                    http.request('../api.php', {images: true}, (response) => {
+                        console.log(response);
+                        this.images = response.data.images;
+                    });
+                }
+            },
+            mounted: function(){
+                this.refresh();
+            },
+            template: `
+                <div class="p-4">
+                    <div class="row border border-dark border-bottom p-4 m-1" v-for="image in images">
+                        <div class="text-center col">
+                            <h3>{{image.make}} - {{image.model}}</h3>
+                            <h4>Uploaded on {{image.date_created}}</h4>
+                        </div>
+                        <div class="text-center col"><img :src="image.url"></div>
+                    </div>
+                </div>
+            `
+        });
+
+        new Vue({
+            el: '#app',
+            data: function(){
+                return {
+                    selected: {}
+                }
+            },
+            methods: {
+                select: function(obj){
+                    console.log(obj);
+                    var selected = Object.keys(obj)[0];
+                    Vue.set(this.selected, selected, obj[selected]);
+                    console.log(this.selected);
+                }
+            }
+        })
+    </script>
+</html>
