@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+        <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.22/vue.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.18.0/axios.min.js"></script>
+
+        <script src="../js/components/vbutton.js"></script>
+        <script src="../js/components/http.js"></script>
+        <script src="../js/components/dropdown.js"></script>
+
+        <script src="js/components/banner.js"></script>
+        <script src="js/components/image-uploader.js"></script>
+        <script src="js/components/post-form.js"></script>
+    </head>
+    <body>
+        <div id="app">
+            <banner></banner>
+
+            <div class="border border-dark rounded m-4 p-2">
+                <h3 class="text-center">Post A Reply</h3>
+                <hr>
+                <image-uploader :id="id"></image-uploader>
+            </div>
+
+            <thread :id="id"></thread>
+        </div>
+        <script>
+            // https://html-online.com/articles/get-url-parameters-javascript/
+            function getUrlVars() {
+                var vars = {};
+                var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) {
+                    vars[key] = value;
+                });
+                return vars;
+            }
+
+            // get a list of posts
+            Vue.component('thread', {
+                mixins: ['http'],
+                props: ['id'],
+                data: function(){
+                    return {
+                        posts: {}
+                    }
+                },
+                methods: {
+                    loadId: function(){
+                        http.request('api.php?getThread=' + this.id, {}, (response) => {
+                            console.log(response);
+                            this.posts = response.data.posts;
+                        });
+                    }
+                },
+                mounted: function(){
+                    this.loadId()
+                },
+                template: `
+                    <div class="m-4 p-3">
+                        <div class="row border border-dark border-bottom rounded mt-4" v-for="post in posts">
+                            <div class="container-fluid">
+                                <span class="h4">{{post.title}} -</span>
+                                <span>Posted by - </span>
+                                <span v-if="post.username">{{post.username}}</span>
+                                <span v-else>Anonymous</span>
+                                <span> on {{post.date_created}}</span>
+                            </div>
+                            <div class="container-fluid row">
+                                <div class="col">{{post.post}}</div>
+                                <div class="text-right col">
+                                    <img :src="post.img_url" class="thread-image">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `
+            });
+
+            new Vue({
+                data: {
+                    id: getUrlVars('id').id
+                },
+                el: '#app'
+            });
+        </script>
+    </body>
+</html>
