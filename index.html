@@ -11,8 +11,10 @@
         <script src="../js/components/vbutton.js"></script>
         <script src="../js/components/http.js"></script>
         <script src="../js/components/dropdown.js"></script>
-        <script src="../js/components/makes-dropdown.js"></script>
-        <script src="../js/components/models-dropdown.js"></script>
+
+        <script src="js/components/banner.js"></script>
+        <script src="js/components/image-uploader.js"></script>
+        <script src="js/components/post-form.js"></script>
 
         <style>
             #loader {
@@ -28,124 +30,47 @@
               0% { transform: rotate(0deg); }
               100% { transform: rotate(360deg); }
             }
+
+            #imagePreview {
+                max-height: 400px;
+                max-width: 800px;
+            }
+
+            .thread-image{
+                max-height: 400px;
+                max-width: 800px;
+            }
         </style>
+
+        <title>Zillion Chan</title>
 
         <meta charset="UTF-8">
     </head>
     <body>
         <div id="app">
+            <banner></banner>
             <div class="border border-dark rounded m-4 p-2">
-                <h3 class="text-center">Upload An Image to Mechawrench</h3>
+                <h3 class="text-center">Post A Thread</h3>
                 <hr>
-                <h4>Make: {{selected.make}}</h4>
-                <makes-dropdown @select="select"></makes-dropdown>
-                <div v-if="selected.make">
-                    <h4>Model: {{selected.model}}</h4>
-                    <models-dropdown :make="selected.make" @select="select"></models-dropdown>
-                </div>
-                <div v-if="selected.model">
-                    <image-uploader :make="selected.make" :model="selected.model" @upload="$refs.display.refresh()"></image-uploader>
-                </div>
+                <image-uploader @upload="$refs.display.refresh()"></image-uploader>
             </div>
 
-            <div class="border border-dark rounded m-4 p-2">
-                <img-display ref="display"></img-display>
-            </div>
+            <threads ref="display"></threads>
         </div>
     </body>
     <script>
-        Vue.component('image-uploader', {
-            mixins: ['http'],
-            props: ['make', 'model'],
-            data: function(){
-                return {
-                    formData: null,
-                    loading: false
-                }
-            },
-            methods: {
-                process: function(){
-                    file = this.$refs.fileInput.files[0];
-                    console.log(file);
-
-                    if(file.type.split("/")[0] !== 'image'){
-                        alert("File Type is not an Image");
-                        this.$refs.fileInput.value = null;
-                        return;
-                    }
-
-                    this.formData = new FormData();
-                    this.formData.append('file', file);
-
-                    var preview = document.querySelector('img');
-                    var file    = document.querySelector('input[type=file]').files[0];
-                    var reader  = new FileReader();
-
-                    reader.onloadend = function () {
-                        preview.src = reader.result;
-                    }
-
-                    if (file) {
-                        reader.readAsDataURL(file);
-                    } else {
-                        preview.src = "";
-                    }
-
-                },
-                upload: function(){
-                    if(this.formData){
-                        this.loading = true;
-                        this.formData.append('make', this.make);
-                        this.formData.append('model', this.model);
-                        axios.post( 'api.php',
-                          this.formData,
-                          {
-                            headers: {
-                                'Content-Type': 'multipart/form-data'
-                            }
-                          }
-                        ).then( (response) => {
-                          console.log(response);
-                          this.$emit('upload');
-                          this.loading = false;
-                        })
-                    } else {
-                        alert("No file selected");
-                    }
-                }
-            },
-            template: `
-                <div>
-                    <form class="form-group" id="uploadForm" method='post' enctype="multipart/form-data">
-                        <input class="form-control" type='file' @change="process()" ref="fileInput">
-                    <div class="row">
-                        <div class="col text-center">
-                            <img src="" height="400" alt="Image preview...">
-                        </div>
-                        <div class="col text-left">
-                            <div id="loader" v-if="loading"></div>
-                        </div>
-                    </div>
-                    <div v-if="formData">
-                        <vbutton class="form-control" bgcolor="green" color="white" @click="upload()">Submit</vbutton>
-                    </div>
-                    </form>
-                </div>
-            `
-        });
-
-        Vue.component('img-display', {
+        Vue.component('threads', {
             mixins: ['http'],
             data: function(){
                 return {
-                    images: {}
+                    posts: {}
                 }
             },
             methods: {
                 refresh: function(){
-                    http.request('../api.php', {images: true}, (response) => {
+                    http.request('api.php', {posts: true}, (response) => {
                         console.log(response);
-                        this.images = response.data.images;
+                        this.posts = response.data.posts;
                     });
                 }
             },
@@ -153,13 +78,24 @@
                 this.refresh();
             },
             template: `
-                <div class="p-4">
-                    <div class="row border border-dark border-bottom p-4 m-1" v-for="image in images">
-                        <div class="text-center col">
-                            <h3>{{image.make}} - {{image.model}}</h3>
-                            <h4>Uploaded on {{image.date_created}}</h4>
+                <div class="m-4 p-3">
+                    <div class="row border border-dark border-bottom rounded mt-4" v-for="post in posts">
+                        <div class="container-fluid">
+                            <span class="h4">{{post.title}} -</span>
+                            <span>Posted by - </span>
+                            <span v-if="post.username">{{post.username}}</span>
+                            <span v-else>Anonymous</span>
+                            <span> on {{post.date_created}}</span>
                         </div>
-                        <div class="text-center col"><img :src="image.url"></div>
+                        <div class="container-fluid row">
+                            <div class="col">{{post.post}}</div>
+                            <div class="text-right col">
+                                <img :src="post.img_url" class="thread-image">
+                            </div>
+                        </div>
+                        <div class="container-fluid text-center h3">
+                            <a :href="'thread.html?id=' + post.id">REPLY TO THIS POST</a>
+                        </div>
                     </div>
                 </div>
             `
@@ -177,6 +113,9 @@
                     console.log(obj);
                     var selected = Object.keys(obj)[0];
                     Vue.set(this.selected, selected, obj[selected]);
+                    console.log(this.selected);
+                },
+                test: function(){
                     console.log(this.selected);
                 }
             }
