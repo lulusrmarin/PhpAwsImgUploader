@@ -13,9 +13,9 @@ use Aws\S3\Exception\S3Exception;
 $db = new db($creds);
 
 // AWS Specifics
-$accessKeyId = 'AKIAJJAMRKTZBBSITBXA';
-$secretKey = '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';
-$bucket = "amillionbillionchan";
+$accessKeyId = '';
+$secretKey = '';
+$bucket = "bucket";
 $region = "us-west-1";
 
 //AWS access info
